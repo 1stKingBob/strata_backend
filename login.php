@@ -36,7 +36,7 @@ try {
     error_log("Queried user: " . json_encode($user));
 
     // Verify password
-    if ($user && password_verify($data->password, $user['password'])) {
+    if (if ($user && $data->password === $user['password'])) {
         error_log("Login success for user: " . $data->name);
         echo json_encode(["success" => true]);
     } else {
