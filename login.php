@@ -1,5 +1,6 @@
 <?php
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
 header("Access-Control-Allow-Methods: POST");
 
@@ -20,10 +21,11 @@ try {
     $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
     $pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE name = :name AND password = :password");
-    $stmt->execute([":name" => $data->name, ":password" => $data->password]);
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE name = :name");
+    $stmt->execute([":name" => $data->name]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($stmt->rowCount() > 0) {
+    if ($user && password_verify($data->password, $user['password'])) {
         echo json_encode(["success" => true]);
     } else {
         echo json_encode(["success" => false, "message" => "Invalid credentials."]);
