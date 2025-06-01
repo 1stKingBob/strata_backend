@@ -10,31 +10,23 @@ if (!isset($data->name) || !isset($data->password)) {
     exit;
 }
 
-$host = "dpg-d0u1u1re5dus738h7bgg-a";
-$port = "5432";
-$dbname = "strata_cnw3";
-$user = "admin";
-$pass = "1EDIguNUpCWRRlVSusl5iQ0b3VFDujeQ";
+$host = getenv("DB_HOST");
+$port = getenv("DB_PORT") ?: "5432";
+$dbname = getenv("DB_NAME");
+$user = getenv("DB_USER");
+$pass = getenv("DB_PASS");
 
 try {
     $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
     $pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-    // Step 1: Query user by name only
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE name = :name");
-    $stmt->execute([":name" => $data->name]);
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE name = :name AND password = :password");
+    $stmt->execute([":name" => $data->name, ":password" => $data->password]);
 
-    if ($stmt->rowCount() === 1) {
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // Step 2: Verify password using password_verify
-        if (password_verify($data->password, $user['password'])) {
-            echo json_encode(["success" => true]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Invalid password."]);
-        }
+    if ($stmt->rowCount() > 0) {
+        echo json_encode(["success" => true]);
     } else {
-        echo json_encode(["success" => false, "message" => "User not found."]);
+        echo json_encode(["success" => false, "message" => "Invalid credentials."]);
     }
 } catch (PDOException $e) {
     echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
