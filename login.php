@@ -1,47 +1,54 @@
 <?php
-header("Access-Control-Allow-Origin: *");  // Adjust this for production
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
 header("Access-Control-Allow-Methods: POST");
 
-// Read JSON input
+// Read and log input
 $data = json_decode(file_get_contents("php://input"));
+error_log("Received login data: " . json_encode($data));
 
 if (!isset($data->name) || !isset($data->password)) {
+    error_log("Missing name or password in request.");
     echo json_encode(["success" => false, "message" => "Missing name or password."]);
     exit;
 }
 
-// DB credentials from environment
+// Get DB credentials from environment variables
 $host = getenv("DB_HOST");
 $port = getenv("DB_PORT") ?: "5432";
 $dbname = getenv("DB_NAME");
 $user = getenv("DB_USER");
 $pass = getenv("DB_PASS");
 
+// Optional: Log DB credentials (for debugging only — remove later)
+error_log("DB creds - host: $host, dbname: $dbname, user: $user");
+
 try {
     $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
     $pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
+    // Prepare and execute statement
     $stmt = $pdo->prepare("SELECT * FROM users WHERE name = :name");
     $stmt->execute([":name" => $data->name]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Replace with password_verify if using hashed passwords
-    if ($user && $data->password === $user['password']) {
-        // Set cookie for 1 day, readable by JS, secure if HTTPS, SameSite=Lax
-        setcookie("username", $user['name'], [
-            'expires' => time() + 86400,
-            'path' => '/',
-            'secure' => true,      // set false if testing locally without HTTPS
-            'httponly' => false,   // allow JS access to cookie
-            'samesite' => 'Lax'
-        ]);
+    error_log("Queried user: " . json_encode($user));
 
-        echo json_encode(["success" => true, "username" => $user['name']]);
+    // Verify password
+    if ($user && $data->password === $user['password']) {
+        error_log("Login success for user: " . $data->name);
+
+        // Set a basic cookie (not secure for production)
+        setcookie("username", $user['name'], time() + 86400, "/", "", false, true); // valid 1 day
+
+        echo json_encode(["success" => true]);
     } else {
+        error_log("Login failed: Invalid credentials for user " . $data->name);
         echo json_encode(["success" => false, "message" => "Invalid credentials."]);
     }
 } catch (PDOException $e) {
-    echo json_encode(["success" => false, "message" => "Database error."]);
+    error_log("PDO error: " . $e->getMessage());
+    echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
 }
+?>
