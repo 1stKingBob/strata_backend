@@ -38,6 +38,10 @@ try {
     // Verify password
     if ($user && $data->password === $user['password']) {
         error_log("Login success for user: " . $data->name);
+
+        // Set a basic cookie (not secure for production)
+        setcookie("username", $user['name'], time() + 86400, "/", "", false, true); // valid 1 day
+
         echo json_encode(["success" => true]);
     } else {
         error_log("Login failed: Invalid credentials for user " . $data->name);
