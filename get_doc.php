@@ -1,17 +1,17 @@
 <?php
-// ✅ Allow requests from your frontend (no trailing slash!)
-header("Access-Control-Allow-Origin: https://strata-savvy-solutions.vercel.app");
+// ✅ CORS settings (adjust origin to your actual frontend domain)
+header("Access-Control-Allow-Origin: https://stratamanagementweb-five.vercel.app");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Content-Type: application/json");
 
-// Handle preflight OPTIONS request
+// ✅ Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit(0);
 }
 
-// ✅ Only respond to POST requests
+// ✅ Only handle POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); // Method Not Allowed
     echo json_encode(['error' => 'Only POST method is allowed']);
@@ -19,51 +19,49 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    // ✅ Load database credentials from environment
+    // ✅ Load DB credentials from environment
     $host = getenv("DB_HOST");
     $port = getenv("DB_PORT") ?: "5432";
     $dbname = getenv("DB_NAME");
     $user = getenv("DB_USER");
     $pass = getenv("DB_PASS");
 
-    // ✅ Connect to PostgreSQL database
+    // ✅ Connect to PostgreSQL using PDO
     $conn = new PDO("pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require", $user, $pass);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // ✅ Decode incoming JSON data
-    $data = json_decode(file_get_contents("php://input"));
+    // ✅ Parse JSON input
+    $input = json_decode(file_get_contents("php://input"), true);
 
-    if (!isset($data->name) || !isset($data->password)) {
+    if (!isset($input["name"]) || !isset($input["password"])) {
         http_response_code(400);
-        echo json_encode(['error' => 'Missing name or password']);
+        echo json_encode(["error" => "Missing name or password"]);
         exit;
     }
 
-    $name = $data->name;
-    $password = $data->password;
+    $name = $input["name"];
+    $password = $input["password"];
 
-    // ✅ Prepare and run query
+    // ✅ Query for document stats
     $stmt = $conn->prepare("SELECT total_doc, public_access FROM users WHERE name = :name AND password = :password");
-    $stmt->bindParam(':name', $name);
-    $stmt->bindParam(':password', $password);
+    $stmt->bindParam(":name", $name);
+    $stmt->bindParam(":password", $password);
     $stmt->execute();
 
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$result) {
+    if (!$row) {
         http_response_code(404);
-        echo json_encode(['error' => 'User not found or wrong credentials']);
+        echo json_encode(["error" => "User not found or wrong credentials"]);
         exit;
     }
 
-    // ✅ Return result as JSON
     echo json_encode([
-        'totalDoc' => $result['total_doc'],
-        'publicAccess' => $result['public_access']
+        "totalDoc" => (int)$row["total_doc"],
+        "publicAccess" => (int)$row["public_access"]
     ]);
-
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    echo json_encode(["error" => "Database error: " . $e->getMessage()]);
 }
 ?>
