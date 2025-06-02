@@ -2,9 +2,14 @@
 // ✅ Allow requests from your frontend (no trailing slash!)
 header("Access-Control-Allow-Origin: https://strata-savvy-solutions.vercel.app");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Content-Type: application/json");
 
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit(0);
+}
 // ✅ Only respond to POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); // Method Not Allowed
